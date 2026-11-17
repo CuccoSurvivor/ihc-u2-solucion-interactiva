@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototipo · Panel de accesibilidad para Blackboard</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#e9ecf1;color:#1d2433}
+  /* ---------- Marco del prototipo (fuera de la interfaz) ---------- */
+  .stage{display:flex;gap:24px;align-items:flex-start;justify-content:center;padding:24px;flex-wrap:wrap}
+  .guide{width:290px;background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08);font-size:14px;line-height:1.45}
+  .guide h1{font-size:16px;margin:0 0 4px}
+  .guide p{margin:0 0 12px;color:#4a5263}
+  .guide h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#6b7385;margin:16px 0 8px}
+  .seg{display:flex;background:#eef1f6;border-radius:8px;padding:3px}
+  .seg button{flex:1;border:0;background:transparent;padding:7px;border-radius:6px;font:inherit;cursor:pointer;color:#4a5263}
+  .seg button[aria-pressed=true]{background:#fff;color:#1d2433;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;color:#4a5263}
+  .steps li .ck{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid #b8bfcc;display:grid;place-items:center;font-size:11px;color:#fff;margin-top:1px}
+  .steps li.done{color:#1d2433}
+  .steps li.done .ck{background:#1f8a4c;border-color:#1f8a4c}
+  .jump{display:flex;flex-wrap:wrap;gap:6px}
+  .jump a{font-size:13px;padding:5px 9px;border-radius:6px;background:#eef1f6;color:#1d2433;text-decoration:none}
+  .jump a:hover{background:#dfe4ec}
+  .note{font-size:12px;color:#6b7385;margin-top:14px}
+
+  /* ---------- Dispositivo ---------- */
+  .device{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(20,30,50,.18);position:relative;transition:width .25s}
+  .device.desktop{width:1000px;height:680px}
+  .device.mobile{width:390px;height:780px;border-radius:36px;border:10px solid #1b1f27}
+
+  /* ---------- Interfaz (tema claro / oscuro) ---------- */
+  .app{--bg:#f5f6f8;--surface:#ffffff;--text:#1d2433;--muted:#555e70;--line:#dde1e8;--accent:#2b59c3;--accent-ink:#fff;--accent-soft:#e7eefc;--hl:#fff1a8;--hl-ink:#1d2433;
+       --scale:1;height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--text);font-size:calc(15px * var(--scale));transition:background .2s,color .2s}
+  .app[data-theme=dark]{--bg:#121417;--surface:#1c1f24;--text:#e8eaed;--muted:#aab1bd;--line:#323843;--accent:#8fb0ff;--accent-ink:#0d1526;--accent-soft:#25304a;--hl:#4a4320;--hl-ink:#fff6c7}
+  .topbar{display:flex;align-items:center;gap:14px;padding:0 16px;height:56px;background:var(--surface);border-bottom:1px solid var(--line);flex:none}
+  .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .logo{width:26px;height:26px;border-radius:7px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:13px}
+  .nav{display:flex;gap:4px;margin-left:12px}
+  .nav a{color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:6px;font-size:14px}
+  .nav a.on{color:var(--text);background:var(--accent-soft)}
+  .spacer{flex:1}
+  .aa{display:flex;align-items:center;gap:6px;border:2px solid var(--accent);background:var(--surface);color:var(--accent);font-weight:700;font-size:15px;padding:6px 12px;border-radius:999px;cursor:pointer}
+  .aa[aria-expanded=true]{background:var(--accent);color:var(--accent-ink)}
+  .aa small{font-weight:600;font-size:12px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:#c9d4ea;color:#23324f;display:grid;place-items:center;font-weight:700;font-size:13px}
+  .mobile .nav,.mobile .aa small{display:none}
+  .main{flex:1;overflow:auto;padding:22px;position:relative}
+  .mobile .main{padding:16px}
+  .crumb{font-size:.82em;color:var(--muted);margin-bottom:6px}
+  .crumb a{color:var(--accent)}
+  h2.title{font-size:1.45em;margin:0 0 16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;text-decoration:none;color:inherit;display:block}
+  .card:hover{border-color:var(--accent)}
+  .card .code{font-size:.8em;color:var(--muted)}
+  .card h3{margin:6px 0 4px;font-size:1.05em}
+  .card .band{height:6px;border-radius:4px;margin:-4px 0 12px}
+  .list{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+  .item{display:flex;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid var(--line);text-decoration:none;color:inherit}
+  .item:first-child{border-top:0}
+  .item:hover{background:var(--accent-soft)}
+  .ico{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none;font-size:18px}
+  .item .meta{font-size:.82em;color:var(--muted)}
+  .reading{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px 26px;max-width:720px;line-height:1.65}
+  .reading h3{margin-top:0;font-size:1.2em}
+  .reading p{margin:0 0 .9em}
+  .s{border-radius:3px;transition:background .15s}
+  .s.now{background:var(--hl);color:var(--hl-ink)}
+  .hint{display:flex;gap:8px;align-items:center;font-size:.85em;color:var(--muted);margin:0 0 14px}
+
+  /* Panel */
+  .panel{position:absolute;top:62px;right:16px;width:330px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.22);padding:16px;z-index:20;display:none;font-size:15px}
+  .panel.open{display:block}
+  .mobile .panel{left:0;right:0;top:auto;bottom:0;width:auto;border-radius:18px 18px 0 0;position:absolute}
+  .panel h3{margin:0;font-size:16px}
+  .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .x{border:0;background:transparent;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+  .row .lbl{display:flex;gap:10px;align-items:center;font-weight:600}
+  .row .lbl span.i{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+  .row .sub{font-size:12px;color:var(--muted);font-weight:400}
+  .switch{width:50px;height:28px;border-radius:999px;border:0;background:#9aa3b2;position:relative;cursor:pointer;flex:none}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .15s}
+  .switch[aria-checked=true]{background:var(--accent)}
+  .switch[aria-checked=true]::after{left:25px}
+  .stepper{display:flex;align-items:center;gap:6px}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:7px 11px;font:inherit;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .dots{display:flex;gap:4px}
+  .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .dots i.on{background:var(--accent)}
+  .speeds{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+  .speeds button{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:4px 9px;font:inherit;font-size:13px;cursor:pointer}
+  .speeds button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+  .saved{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+  .saved b{color:#1f8a4c}
+  .app[data-theme=dark] .saved b{color:#6fd39a}
+  .linkbtn{border:0;background:none;color:var(--accent);font:inherit;font-size:12px;cursor:pointer;margin-left:auto;text-decoration:underline}
+
+  /* Reproductor flotante */
+  .player{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;background:var(--surface);border:1px solid var(--line);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:none;align-items:center;gap:8px;padding:6px 8px 6px 14px;z-index:15;font-size:14px;white-space:nowrap}
+  .player.show{display:flex}
+  .player .st{color:var(--muted);font-size:12px}
+  .round{width:38px;height:38px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:16px;cursor:pointer}
+  .ghost{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+
+  /* Foro / dictado */
+  .field{position:relative;max-width:640px}
+  .field textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:12px 56px 12px 12px;font:inherit;background:var(--surface);color:var(--text);line-height:1.5}
+  .mic{position:absolute;right:10px;bottom:12px;width:40px;height:40px;border-radius:50%;border:0;background:var(--accent-soft);color:var(--accent);font-size:18px;cursor:pointer}
+  .mic.rec{background:#d93848;color:#fff;animation:pulse 1.1s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,56,72,.5)}100%{box-shadow:0 0 0 14px rgba(217,56,72,0)}}
+  .status{min-height:22px;font-size:.85em;color:var(--muted);margin:8px 0}
+  .post{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;max-width:640px}
+  .post .who{font-weight:600;font-size:.9em}
+  .post .when{font-size:.78em;color:var(--muted)}
+
+  /* Clase en vivo */
+  .live{flex:1;min-width:0;width:100%;display:flex;flex-direction:column;background:#0f1115;color:#e8eaed}
+  .live .lt{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:14px;border-bottom:1px solid #262a33}
+  .dot{width:9px;height:9px;border-radius:50%;background:#e5484d}
+  .stagebox{user-select:none;-webkit-user-select:none;position:relative;margin:12px;border-radius:8px;overflow:hidden;background:#000;touch-action:none;height:260px}
+  .desktop .stagebox{height:420px}
+  .slide{position:absolute;inset:0;transform-origin:0 0;transition:transform .2s}
+  .slide svg{width:100%;height:100%;display:block}
+  .zbadge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;font-size:12px;padding:4px 8px;border-radius:999px;z-index:3}
+  .zctrl{display:flex;gap:8px;justify-content:center;align-items:center;padding:0 12px 8px}
+  .zctrl button{border:1px solid #3a404c;background:#1c1f26;color:#e8eaed;border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;font-size:14px}
+  .ztip{font-size:12px;color:#aab1bd;text-align:center;padding:0 16px}
+  .people{display:flex;gap:8px;padding:12px;overflow-x:auto;min-width:0}
+  .people div{flex:none;width:70px;height:52px;border-radius:8px;background:#232731;display:grid;place-items:center;font-size:12px;color:#aab1bd}
+  .toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:#1d2433;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  :focus-visible{outline:3px solid #f0a500;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <aside class="guide" aria-label="Guía del prototipo">
+    <h1>Prototipo navegable</h1>
+    <p>Panel de accesibilidad integrado en Blackboard (alternativa A). Media fidelidad: se puede navegar y las funciones responden de verdad.</p>
+    <h2>Dispositivo</h2>
+    <div class="seg" role="group" aria-label="Dispositivo">
+      <button id="dDesk" aria-pressed="true">Computador</button>
+      <button id="dMob" aria-pressed="false">Celular</button>
+    </div>
+    <h2>Tarea principal</h2>
+    <ol class="steps" id="steps">
+      <li data-k="curso"><span class="ck">✓</span>1. Entrar al curso</li>
+      <li data-k="contenido"><span class="ck">✓</span>2. Abrir el contenido</li>
+      <li data-k="ajuste"><span class="ck">✓</span>3. Activar modo oscuro o cambiar la letra</li>
+      <li data-k="escuchar"><span class="ck">✓</span>4. Escuchar, pausar o cambiar la velocidad</li>
+      <li data-k="volver"><span class="ck">✓</span>5. Volver a la lectura visual</li>
+    </ol>
+    <h2>Pantallas</h2>
+    <nav class="jump">
+      <a href="#inicio">P1 Inicio</a><a href="#curso">P2 Curso</a><a href="#contenido">P3 Contenido</a><a href="#panel">P4 Panel Aa</a><a href="#foro">P5 Foro y dictado</a><a href="#clase">P6 Clase en vivo</a>
+    </nav>
+    <p class="note">La lectura en voz alta usa la voz del navegador. El dictado usa el micrófono si el navegador lo permite; si no, se simula. Los ajustes se guardan en este navegador para simular la cuenta del estudiante.</p>
+  </aside>
+
+  <div class="device desktop" id="device">
+    <div class="app" id="app">
+      <header class="topbar">
+        <div class="brand"><span class="logo">CV</span><span class="bname">Campus Virtual</span></div>
+        <nav class="nav"><a href="#inicio" class="on">Cursos</a><a href="#inicio">Calendario</a><a href="#inicio">Mensajes</a></nav>
+        <div class="spacer"></div>
+        <button class="aa" id="aaBtn" aria-expanded="false" aria-controls="panel" title="Accesibilidad">Aa <small>Accesibilidad</small></button>
+        <div class="avatar" aria-label="Camila Rojas">CR</div>
+      </header>
+
+      <section class="panel" id="panel" role="dialog" aria-label="Panel de accesibilidad">
+        <div class="ph"><h3>Accesibilidad</h3><button class="x" id="closePanel" aria-label="Cerrar panel">×</button></div>
+        <div class="row">
+          <div class="lbl"><span class="i" style="font-size:18px">☾</span><div>Modo oscuro<div class="sub">Toda la plataforma</div></div></div>
+          <button class="switch" id="darkSw" role="switch" aria-checked="false" aria-label="Modo oscuro"></button>
+        </div>
+        <div class="row">
+          <div class="lbl"><span class="i">A</span><div>Tamaño de letra<div class="sub" id="fsLbl">Normal</div></div></div>
+          <div class="stepper">
+            <button class="btn" id="fsDown" aria-label="Achicar letra">A−</button>
+            <div class="dots" id="fsDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <button class="btn" id="fsUp" aria-label="Agrandar letra">A+</button>
+          </div>
+        </div>
+        <div class="row" style="display:block">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="lbl"><span class="i">♪</span><div>Leer en voz alta<div class="sub" id="readSub">Lee el texto de esta página</div></div></div>
+            <button class="btn primary" id="readBtn">▶ Escuchar</button>
+          </div>
+          <div class="sub" style="margin-top:10px">Velocidad</div>
+          <div class="speeds" id="speeds" role="group" aria-label="Velocidad de lectura"></div>
+        </div>
+        <div class="saved" aria-live="polite"><b>✓</b><span id="savedTxt">Guardado en tu cuenta · igual en notebook y celular</span><button class="linkbtn" id="resetBtn">Restablecer</button></div>
+      </section>
+
+      <main class="main" id="main"></main>
+
+      <div class="player" id="player" role="region" aria-label="Reproductor de lectura">
+        <span>♪</span><span class="st" id="pState">Leyendo…</span>
+        <button class="round" id="pToggle" aria-label="Pausar">❚❚</button>
+        <button class="ghost" id="pSpeed" aria-label="Cambiar velocidad">1x</button>
+        <button class="ghost" id="pStop">Detener</button>
+      </div>
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const app = $('#app'), main = $('#main'), device = $('#device');
+  const SIZES = [{v:1,l:'Normal'},{v:1.15,l:'Grande'},{v:1.3,l:'Más grande'},{v:1.5,l:'Muy grande'}];
+  const RATES = [0.75,1,1.25,1.5,2];
+  let prefs = {dark:false,size:0,rate:1};
+  try{ const p = JSON.parse(localStorage.getItem('bb-a11y-prefs')||'null'); if(p) prefs = Object.assign(prefs,p);}catch(e){}
+  const done = new Set();
+
+  function save(){ try{localStorage.setItem('bb-a11y-prefs',JSON.stringify(prefs));}catch(e){}
+    const t=$('#savedTxt'); t.textContent='Guardado en tu cuenta · igual en notebook y celular'; }
+  function mark(k){ done.add(k); document.querySelectorAll('#steps li').forEach(li=>li.classList.toggle('done',done.has(li.dataset.k))); }
+  function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+
+  function applyPrefs(){
+    app.dataset.theme = prefs.dark ? 'dark' : 'light';
+    $('#darkSw').setAttribute('aria-checked', prefs.dark);
+    app.style.setProperty('--scale', SIZES[prefs.size].v);
+    $('#fsLbl').textContent = SIZES[prefs.size].l;
+    document.querySelectorAll('#fsDots i').forEach((d,i)=>d.classList.toggle('on',i<=prefs.size));
+    $('#fsDown').disabled = prefs.size===0; $('#fsUp').disabled = prefs.size===SIZES.length-1;
+    $('#speeds').innerHTML = RATES.map(r=>`<button data-r="${r}" aria-pressed="${r===prefs.rate}">${String(r).replace('.',',')}x</button>`).join('');
+    $('#pSpeed').textContent = String(prefs.rate).replace('.',',')+'x';
+  }
+
+  /* ---------- Dispositivo ---------- */
+  function setDevice(m){ device.className = 'device '+m; $('#dDesk').setAttribute('aria-pressed',m==='desktop'); $('#dMob').setAttribute('aria-pressed',m==='mobile'); }
+  $('#dDesk').onclick=()=>setDevice('desktop'); $('#dMob').onclick=()=>setDevice('mobile');
+
+  /* ---------- Panel ---------- */
+  function openPanel(o){ $('#panel').classList.toggle('open',o); $('#aaBtn').setAttribute('aria-expanded',o); if(o) $('#darkSw').focus(); }
+  $('#aaBtn').onclick=()=>openPanel(!$('#panel').classList.contains('open'));
+  $('#closePanel').onclick=()=>{openPanel(false);$('#aaBtn').focus();};
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') openPanel(false); });
+  $('#darkSw').onclick=()=>{ prefs.dark=!prefs.dark; applyPrefs(); save(); mark('ajuste'); toast(prefs.dark?'Modo oscuro activado':'Modo claro activado'); };
+  $('#fsUp').onclick=()=>{ if(prefs.size<3){prefs.size++;applyPrefs();save();mark('ajuste');} };
+  $('#fsDown').onclick=()=>{ if(prefs.size>0){prefs.size--;applyPrefs();save();mark('ajuste');} };
+  $('#speeds').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; setRate(parseFloat(b.dataset.r)); };
+  $('#resetBtn').onclick=()=>{ prefs={dark:false,size:0,rate:1}; applyPrefs(); save(); toast('Ajustes restablecidos'); };
+  function setRate(r){ prefs.rate=r; applyPrefs(); save(); if(reader.playing){ reader.restartSentence(); } if(reader.active) mark('escuchar'); }
+
+  /* ---------- Lectura en voz alta ---------- */
+  const reader = {
+    sents:[], i:0, active:false, playing:false, timer:null,
+    collect(){ this.sents=[...main.querySelectorAll('.s')]; },
+    start(){ this.collect(); if(!this.sents.length){ toast('Esta página no tiene texto para leer'); return; }
+      this.active=true; this.i=0; $('#player').classList.add('show'); $('#readBtn').textContent='■ Detener'; this.play(); },
+    play(){ this.playing=true; $('#pToggle').textContent='❚❚'; $('#pToggle').setAttribute('aria-label','Pausar'); $('#pState').textContent='Leyendo…'; this.speak(); },
+    pause(){ this.playing=false; this.cancel(); $('#pToggle').textContent='▶'; $('#pToggle').setAttribute('aria-label','Retomar'); $('#pState').textContent='En pausa'; mark('escuchar'); },
+    stop(){ this.cancel(); this.active=false; this.playing=false; this.sents.forEach(s=>s.classList.remove('now')); $('#player').classList.remove('show'); $('#readBtn').textContent='▶ Escuchar'; if(done.has('escuchar')) mark('volver'); },
+    cancel(){ clearTimeout(this.timer); try{ window.speechSynthesis && speechSynthesis.cancel(); }catch(e){} },
+    restartSentence(){ this.cancel(); this.speak(); },
+    speak(){
+      if(!this.playing) return;
+      if(this.i>=this.sents.length){ this.stop(); toast('Lectura terminada'); return; }
+      this.sents.forEach(s=>s.classList.remove('now'));
+      const el=this.sents[this.i]; el.classList.add('now'); el.scrollIntoView({block:'center',behavior:'smooth'});
+      const next=()=>{ if(!this.playing) return; this.i++; this.speak(); };
+      const fallback=()=>{ this.timer=setTimeout(next, Math.max(1200, el.textContent.length*55)/prefs.rate); };
+      try{
+        if('speechSynthesis' in window && speechSynthesis.getVoices){
+          const u=new SpeechSynthesisUtterance(el.textContent); u.lang='es-CL'; u.rate=prefs.rate;
+          const v=speechSynthesis.getVoices().find(v=>/^es/i.test(v.lang)); if(v) u.voice=v;
+          let ended=false; u.onend=()=>{ if(!ended){ended=true; next();} }; u.onerror=()=>{ if(!ended){ended=true; fallback();} };
+          speechSynthesis.speak(u);
+          // si el navegador no tiene voces, avanzar igual para que el prototipo no se quede pegado
+          this.timer=setTimeout(()=>{ if(!ended && !speechSynthesis.speaking){ ended=true; fallback(); } }, 1500);
+        } else fallback();
+      }catch(e){ fallback(); }
+    }
+  };
+  $('#readBtn').onclick=()=>{ if(reader.active){ reader.stop(); } else { reader.start(); openPanel(false); } };
+  $('#pToggle').onclick=()=> reader.playing ? reader.pause() : reader.play();
+  $('#pStop').onclick=()=>reader.stop();
+  $('#pSpeed').onclick=()=>{ const i=RATES.indexOf(prefs.rate); setRate(RATES[(i+1)%RATES.length]); };
+
+  /* ---------- Pantallas ---------- */
+  const wrap = t => t.split(/(?<=[.!?:])\s+/).map(x=>`<span class="s">${x}</span>`).join(' ');
+  const screens = {
+    inicio(){ return `
+      <div class="crumb">Inicio</div><h2 class="title">Mis cursos</h2>
+      <p class="hint">¿La pantalla te encandila o la letra se ve pequeña? Usa el botón <b>Aa</b> de arriba.</p>
+      <div class="cards">
+        <a class="card" href="#curso"><div class="band" style="background:#2b59c3"></div><div class="code">EINGT1022 · Sección 1</div><h3>Interacción Humano Computador</h3><div class="code">Unidad 2 disponible · 1 evaluación pendiente</div></a>
+        <a class="card" href="#inicio"><div class="band" style="background:#1f8a4c"></div><div class="code">Curso de ejemplo</div><h3>Lenguajes de Programación</h3><div class="code">2 anuncios nuevos</div></a>
+        <a class="card" href="#inicio"><div class="band" style="background:#b0601c"></div><div class="code">Curso de ejemplo</div><h3>Base de Datos</h3><div class="code">Sin novedades</div></a>
+      </div>`; },
+    curso(){ mark('curso'); return `
+      <div class="crumb"><a href="#inicio">Mis cursos</a> › Interacción Humano Computador</div>
+      <h2 class="title">Unidad 2 · Diseño de interacción</h2>
+      <div class="list">
+        <a class="item" href="#contenido"><span class="ico">▤</span><div><b>Ficha de actividad: trabajo grupal</b><div class="meta">Texto · 5 min de lectura · se puede escuchar</div></div></a>
+        <a class="item" href="#foro"><span class="ico">✎</span><div><b>Foro de consultas de la unidad</b><div class="meta">3 respuestas · admite dictado por voz</div></div></a>
+        <a class="item" href="#clase"><span class="ico">●</span><div><b>Clase en vivo (Collaborate)</b><div class="meta">En curso · mejor desde el celular para probar el zoom</div></div></a>
+      </div>`; },
+    contenido(){ mark('curso'); mark('contenido'); return `
+      <div class="crumb"><a href="#inicio">Mis cursos</a> › <a href="#curso">IHC</a> › Ficha de actividad</div>
+      <h2 class="title">Ficha de actividad: trabajo grupal</h2>
+      <p class="hint">♪ Puedes escuchar esta página desde el botón <b>Aa</b> → Leer en voz alta.</p>
+      <article class="reading">
+        <h3>${wrap('Objetivo del trabajo')}</h3>
+        <p>${wrap('El trabajo consiste en diseñar una solución interactiva centrada en las personas que la van a usar. Para lograrlo, el grupo aplica las actividades iniciales del diseño de interacción: descubrir requisitos, proponer alternativas y construir un prototipo.')}</p>
+        <p>${wrap('Primero se identifica un problema de interacción y se describe a los usuarios y su contexto. Después se comparan al menos dos alternativas de solución y se justifica cuál responde mejor al problema.')}</p>
+        <p>${wrap('Con la alternativa elegida, el grupo define el modelo conceptual, la metáfora de interfaz y los tipos de interacción. Luego organiza los contenidos, dibuja el flujo de usuario y construye un prototipo de baja, media o alta fidelidad.')}</p>
+        <p>${wrap('Todo el proceso se documenta en un informe escrito y se respalda en un repositorio de GitHub con las evidencias del trabajo en equipo.')}</p>
+      </article>`; },
+    foro(){ mark('curso'); return `
+      <div class="crumb"><a href="#inicio">Mis cursos</a> › <a href="#curso">IHC</a> › Foro de consultas</div>
+      <h2 class="title">Foro de consultas de la unidad</h2>
+      <div class="post"><div class="who">Prof. Yenny Méndez <span class="when">· hace 2 días</span></div><p style="margin:.4em 0 0">Usen este foro para dudas sobre el trabajo grupal de la unidad 2.</p></div>
+      <label for="reply" style="font-weight:600;display:block;margin:16px 0 8px">Tu respuesta</label>
+      <div class="field">
+        <textarea id="reply" placeholder="Escribe aquí o toca el micrófono para dictar"></textarea>
+        <button class="mic" id="mic" aria-label="Dictar por voz" aria-pressed="false">🎤</button>
+      </div>
+      <div class="status" id="micStatus" aria-live="polite"></div>
+      <button class="btn primary">Publicar</button>`; },
+    clase(){ mark('curso'); return `
+      <div class="live">
+        <div class="lt"><span class="dot"></span><b>Clase en vivo</b><span style="color:#aab1bd">· IHC · 24 participantes</span></div>
+        <div class="stagebox" id="stagebox">
+          <span class="zbadge" id="zbadge">100 % · solo cambia tu vista</span>
+          <div class="slide" id="slide">
+            <svg viewBox="0 0 640 360" role="img" aria-label="Diapositiva compartida por la docente: tipos de prototipo">
+              <rect width="640" height="360" fill="#fff"/>
+              <text x="32" y="48" font-size="26" font-weight="700" fill="#1d2433">Tipos de prototipo</text>
+              <rect x="32" y="72" width="180" height="230" rx="10" fill="#e7eefc"/><rect x="230" y="72" width="180" height="230" rx="10" fill="#e6f4ec"/><rect x="428" y="72" width="180" height="230" rx="10" fill="#fbeee2"/>
+              <text x="48" y="104" font-size="16" font-weight="700" fill="#2b59c3">Baja fidelidad</text><text x="246" y="104" font-size="16" font-weight="700" fill="#1f8a4c">Media fidelidad</text><text x="444" y="104" font-size="16" font-weight="700" fill="#b0601c">Alta fidelidad</text>
+              <g font-size="10" fill="#333">
+                <text x="48" y="132">• Bocetos en papel</text><text x="48" y="150">• Storyboards</text><text x="48" y="168">• Rápidos y baratos</text><text x="48" y="186">• Sirven para explorar ideas</text><text x="48" y="204">  y descartar temprano</text>
+                <text x="246" y="132">• Wireframes navegables</text><text x="246" y="150">• Estructura y flujo reales</text><text x="246" y="168">• Poco detalle visual</text><text x="246" y="186">• Sirven para probar la</text><text x="246" y="204">  tarea principal</text>
+                <text x="444" y="132">• Se parece al producto final</text><text x="444" y="150">• Colores, tipografía, datos</text><text x="444" y="168">• Más costosos de cambiar</text><text x="444" y="186">• Sirven para validar detalles</text><text x="444" y="204">  visuales e interacción fina</text>
+              </g>
+              <text x="32" y="336" font-size="9" fill="#888">Unidad 2 · Interacción Humano Computador</text>
+            </svg>
+          </div>
+        </div>
+        <div class="zctrl"><button id="zOut" aria-label="Alejar">−</button><button id="zReset">Ajustar a pantalla</button><button id="zIn" aria-label="Acercar">+</button></div>
+        <p class="ztip">Pellizca o toca dos veces la diapositiva para ampliarla. Arrastra para moverte. La docente y tus compañeros no ven este cambio.</p>
+        <div class="people"><div>Docente</div><div>Tú</div><div>D. B.</div><div>A. G.</div><div>V. G.</div><div>I. T.</div></div>
+      </div>`; }
+  };
+
+  function route(){
+    let h=(location.hash||'#inicio').slice(1);
+    const showPanel = h==='panel';
+    if(showPanel) h='contenido';
+    if(!screens[h]) h='inicio';
+    if(reader.active) reader.stop();
+    main.innerHTML = screens[h]();
+    main.style.padding = h==='clase' ? '0' : '';
+    main.style.display = h==='clase' ? 'flex' : '';
+    document.querySelectorAll('.nav a').forEach((a,i)=>a.classList.toggle('on',i===0));
+    openPanel(showPanel);
+    if(h==='clase'){ if(device.classList.contains('desktop')) toast('Tip: cambia a "Celular" para ver el uso previsto'); initZoom(); }
+    if(h==='foro') initMic();
+    main.scrollTop=0;
+  }
+  window.addEventListener('hashchange',route);
+
+  /* ---------- Dictado ---------- */
+  function initMic(){
+    const mic=$('#mic'), ta=$('#reply'), st=$('#micStatus');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let rec=null, sim=null;
+    const demo='Profesora, quería consultar si el prototipo puede ser de media fidelidad y navegable, o si tiene que ser en papel.';
+    function on(){ mic.classList.add('rec'); mic.setAttribute('aria-pressed','true'); mic.setAttribute('aria-label','Detener dictado'); st.textContent='Escuchando… habla con normalidad. Toca de nuevo para terminar.'; }
+    function off(msg){ mic.classList.remove('rec'); mic.setAttribute('aria-pressed','false'); mic.setAttribute('aria-label','Dictar por voz'); st.textContent=msg||'Listo. Revisa el texto antes de publicar; puedes corregirlo con el teclado.'; }
+    function simulate(){ on(); let i=0; const base=ta.value? ta.value+' ':''; sim=setInterval(()=>{ i+=3; ta.value=base+demo.slice(0,i); if(i>=demo.length){ clearInterval(sim); sim=null; off(); } },60); }
+    mic.onclick=()=>{
+      if(sim){ clearInterval(sim); sim=null; off(); return; }
+      if(rec){ rec.stop(); return; }
+      if(!SR){ simulate(); return; }
+      try{
+        rec=new SR(); rec.lang='es-CL'; rec.interimResults=true; const base=ta.value? ta.value+' ':'';
+        rec.onresult=e=>{ ta.value = base + [...e.results].map(r=>r[0].transcript).join(' '); };
+        rec.onerror=()=>{ rec=null; simulate(); };
+        rec.onend=()=>{ if(rec){ rec=null; off(); } };
+        rec.start(); on();
+      }catch(e){ rec=null; simulate(); }
+    };
+  }
+
+  /* ---------- Zoom en la clase ---------- */
+  function initZoom(){
+    const box=$('#stagebox'), slide=$('#slide'), badge=$('#zbadge');
+    let s=1, x=0, y=0;
+    const clamp=()=>{ const w=box.clientWidth,h=box.clientHeight; x=Math.min(0,Math.max(w-w*s,x)); y=Math.min(0,Math.max(h-h*s,y)); };
+    const draw=()=>{ clamp(); slide.style.transform=`translate(${x}px,${y}px) scale(${s})`; badge.textContent=Math.round(s*100)+' % · solo cambia tu vista'; };
+    const zoomAt=(ns,cx,cy)=>{ ns=Math.min(4,Math.max(1,ns)); x=cx-(cx-x)*(ns/s); y=cy-(cy-y)*(ns/s); s=ns; draw(); };
+    $('#zIn').onclick=()=>zoomAt(s*1.5,box.clientWidth/2,box.clientHeight/2);
+    $('#zOut').onclick=()=>zoomAt(s/1.5,box.clientWidth/2,box.clientHeight/2);
+    $('#zReset').onclick=()=>{ s=1;x=0;y=0;draw(); };
+    box.ondblclick=e=>{ const r=box.getBoundingClientRect(); s>1.4? (s=1,x=0,y=0,draw()) : zoomAt(2.5,e.clientX-r.left,e.clientY-r.top); };
+    box.addEventListener('wheel',e=>{ e.preventDefault(); const r=box.getBoundingClientRect(); zoomAt(s*(e.deltaY<0?1.15:1/1.15),e.clientX-r.left,e.clientY-r.top); },{passive:false});
+    const pts=new Map(); let last=null;
+    box.onpointerdown=e=>{ box.setPointerCapture(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); };
+    box.onpointermove=e=>{
+      if(!pts.has(e.pointerId)) return; const prev=pts.get(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pts.size===2){ const [a,b]=[...pts.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const r=box.getBoundingClientRect();
+        if(last) zoomAt(s*d/last,(a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top); last=d; }
+      else if(s>1){ x+=e.clientX-prev.x; y+=e.clientY-prev.y; draw(); }
+    };
+    box.onpointerup=box.onpointercancel=e=>{ pts.delete(e.pointerId); if(pts.size<2) last=null; };
+    draw();
+  }
+
+  applyPrefs(); route();
+})();
+</script>
+</body>
+</html>
